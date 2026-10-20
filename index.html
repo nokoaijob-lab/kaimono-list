@@ -7,7 +7,6 @@
 <meta name="apple-mobile-web-app-title" content="買い物リスト">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
 <title>かんたん買い物リスト</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Zen+Maru+Gothic:wght@500;700&display=swap">
 <style>
 /* Layout: one narrow column, big tap rows. 買うもの on top, カゴに入れた below. */
 :root {
@@ -20,8 +19,8 @@
   --accent-ink: #FFFFFF;
   --done-bg: #E3EFE7;
   --danger: #B3261E;
-  --font-display: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif;
-  --font-body: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --font-display: "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif;
+  --font-body: "Hiragino Sans", "Yu Gothic", sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -120,6 +119,11 @@ form.add.small input, form.add.small button { height: 52px; font-size: 18px; }
 .tag { display: inline-block; margin-left: 8px; padding: 0 8px; font-size: 13px; color: var(--muted); border: 1px solid var(--line); border-radius: 10px; vertical-align: middle; }
 .note { font-size: 14px; color: var(--muted); text-align: center; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.row .check:active { background: var(--done-bg); }
+.quick button:active, .clear button:active { transform: scale(.94); opacity: .7; }
+.toast { position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom,0px)); transform: translateX(-50%) translateY(20px); background: var(--ink); color: var(--bg); padding: 14px 22px; border-radius: 28px; font-size: 18px; font-weight: 700; opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s; max-width: 90vw; text-align: center; z-index: 9; }
+.toast.show { opacity: .95; transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
@@ -159,6 +163,7 @@ form.add.small input, form.add.small button { height: 52px; font-size: 18px; }
   </section>
 
   <p class="note" id="note" hidden></p>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
 
 <script>
@@ -297,6 +302,7 @@ form.add.small input, form.add.small button { height: 52px; font-size: 18px; }
   async function addItem(name) {
     name = (name || "").trim();
     if (!name) return;
+    toast("✓ 追加しました：" + name);
     var it = { name: name, done: false, ts: Date.now(), store: curStore };
     if (store) {
       try { await store.add(it); } catch (e) { showNote("保存できませんでした。もう一度お試しください。"); }
@@ -308,11 +314,13 @@ form.add.small input, form.add.small button { height: 52px; font-size: 18px; }
   async function toggle(id) {
     var it = find(id); if (!it) return;
     var nd = !it.done, ts = Date.now();
+    toast(nd ? "🛒 カゴに入れました" : "↩ もどしました");
     if (store) {
       try { await store.doc(id).update({ done: nd, ts: ts }); } catch (e) { showNote("保存できませんでした。もう一度お試しください。"); }
     } else { it.done = nd; it.ts = ts; lsSave(); render(); }
   }
   async function remove(id) {
+    toast("消しました");
     if (store) {
       try { await store.doc(id).delete(); } catch (e) { showNote("消せませんでした。もう一度お試しください。"); }
     } else { items = items.filter(function (i) { return i.id !== id; }); lsSave(); render(); }
@@ -325,6 +333,8 @@ form.add.small input, form.add.small button { height: 52px; font-size: 18px; }
     render();
   }
 
+  var toastT;
+  function toast(m) { try { if (navigator.vibrate) navigator.vibrate(30); } catch (e) {} var t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove("show"); }, 1400); }
   function showNote(t) { var n = $("note"); n.textContent = t; n.hidden = !t; }
 
   // Quick-add chips
@@ -383,6 +393,7 @@ form.add.small input, form.add.small button { height: 52px; font-size: 18px; }
   items = lsLoad(); render();
 
   showNote("リストは、このスマホの中にだけ保存されます。");
+  if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").catch(function () {}); }
 })();
 </script>
 

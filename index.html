@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="買い物リスト">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+<title>かんたん買い物リスト</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+/* Layout: one narrow column, big tap rows. 買うもの on top, カゴに入れた below. */
+:root {
+  --bg: #F2F6F3;
+  --surface: #FFFFFF;
+  --ink: #17261F;
+  --muted: #5B6E64;
+  --line: #D5E0D9;
+  --accent: #1E7B4F;
+  --accent-ink: #FFFFFF;
+  --done-bg: #E3EFE7;
+  --danger: #B3261E;
+  --font-display: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif;
+  --font-body: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101A15; --surface: #17241D; --ink: #E8F1EB; --muted: #9DB3A6;
+    --line: #2A3D33; --accent: #4CC38A; --accent-ink: #07281A; --done-bg: #1A2C22;
+    --danger: #FF8A80; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101A15; --surface: #17241D; --ink: #E8F1EB; --muted: #9DB3A6;
+  --line: #2A3D33; --accent: #4CC38A; --accent-ink: #07281A; --done-bg: #1A2C22;
+  --danger: #FF8A80; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 18px;
+  line-height: 1.5;
+  padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-family: var(--font-display); font-size: 30px; line-height: 1.2; margin: 0; text-wrap: balance; }
+.count { color: var(--muted); font-size: 16px; font-variant-numeric: tabular-nums; }
+.count b { color: var(--ink); font-size: 20px; }
+
+form.add { display: flex; gap: 10px; }
+form.add input {
+  flex: 1; min-width: 0; height: 60px; padding: 0 16px; font: inherit; font-size: 20px;
+  color: var(--ink); background: var(--surface); border: 2px solid var(--line); border-radius: 14px;
+}
+form.add input::placeholder { color: var(--muted); }
+form.add button {
+  height: 60px; padding: 0 22px; font-family: var(--font-display); font-weight: 700; font-size: 20px;
+  background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 14px;
+}
+form.add button:active { transform: scale(.97); }
+
+.quick { display: flex; flex-wrap: wrap; gap: 8px; }
+.quick .label { width: 100%; color: var(--muted); font-size: 14px; }
+.quick button {
+  min-height: 44px; padding: 0 16px; font-size: 17px; background: transparent;
+  border: 1.5px dashed var(--line); border-radius: 22px; color: var(--ink);
+}
+
+section h2 {
+  font-family: var(--font-display); font-size: 17px; letter-spacing: .06em; color: var(--muted);
+  margin: 0 0 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.row { display: flex; align-items: stretch; background: var(--surface); border: 1.5px solid var(--line); border-radius: 14px; overflow: hidden; }
+.row .check {
+  flex: 1; min-width: 0; min-height: 66px; display: flex; align-items: center; gap: 14px;
+  padding: 8px 8px 8px 14px; background: none; border: 0; text-align: left;
+}
+.row .box {
+  flex: none; width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid var(--accent);
+  display: grid; place-items: center;
+}
+.row .name { font-size: 21px; overflow-wrap: anywhere; }
+.row .del {
+  flex: none; width: 56px; background: none; border: 0; color: var(--muted); font-size: 26px; line-height: 1;
+}
+.row .del:active { color: var(--danger); }
+.row.done { background: var(--done-bg); border-color: transparent; }
+.row.done .box { background: var(--accent); }
+.row.done .box::after {
+  content: ""; width: 9px; height: 17px; border: solid var(--accent-ink); border-width: 0 3.5px 3.5px 0;
+  transform: translateY(-2px) rotate(45deg);
+}
+.row.done .name { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 2px; }
+
+.empty { color: var(--muted); padding: 18px 4px; text-align: center; }
+
+.clear { display: flex; gap: 8px; align-items: center; }
+.clear button {
+  min-height: 44px; padding: 0 14px; font-size: 16px; background: none; border: 1.5px solid var(--line);
+  border-radius: 10px; color: var(--muted);
+}
+.clear button.danger { border-color: var(--danger); color: var(--danger); font-weight: 700; }
+.clear span { font-size: 15px; color: var(--danger); }
+
+.quick button.on { background: var(--accent); color: var(--accent-ink); border: 1.5px solid var(--accent); font-weight: 700; }
+.quick button.more { color: var(--muted); }
+form.add.small { margin-top: -10px; }
+form.add.small input, form.add.small button { height: 52px; font-size: 18px; }
+.grp { font-family: var(--font-display); font-weight: 700; font-size: 17px; color: var(--accent); padding: 10px 2px 0; }
+.grp:first-child { padding-top: 0; }
+.tag { display: inline-block; margin-left: 8px; padding: 0 8px; font-size: 13px; color: var(--muted); border: 1px solid var(--line); border-radius: 10px; vertical-align: middle; }
+.note { font-size: 14px; color: var(--muted); text-align: center; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>かんたん買い物リスト</h1>
+    <div class="count" id="count" aria-live="polite"></div>
+  </header>
+
+  <form class="add" id="addForm" autocomplete="off">
+    <input id="addInput" type="text" enterkeyhint="done" placeholder="買うものを入力" aria-label="買うものを入力" maxlength="60">
+    <button type="submit">追加</button>
+  </form>
+
+  <div class="quick" id="stores" role="group" aria-label="買う場所"></div>
+  <form class="add small" id="storeForm" hidden autocomplete="off">
+    <input id="storeInput" type="text" enterkeyhint="done" placeholder="お店の名前（例：業務スーパー）" aria-label="お店の名前" maxlength="30">
+    <button type="submit">決定</button>
+  </form>
+
+  <div class="quick" id="quick">
+    <span class="label">よく買うもの（タップで追加）</span>
+  </div>
+
+  <section>
+    <h2>買うもの</h2>
+    <ul id="todo"></ul>
+  </section>
+
+  <section id="doneSection">
+    <h2>
+      <span>カゴに入れた</span>
+      <span class="clear" id="clearArea"></span>
+    </h2>
+    <ul id="done"></ul>
+  </section>
+
+  <p class="note" id="note" hidden></p>
+</div>
+
+<script>
+(function () {
+  var QUICK = ["牛乳", "卵", "豆腐", "納豆", "食パン", "バナナ", "鶏肉", "ねぎ"];
+  var items = [];          // {id, name, done, ts}
+  var store = null;        // db collection or null
+  var confirmClear = false;
+  var LS_KEY = "kaimono-list-v1";
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function lsLoad() {
+    try { var v = JSON.parse(localStorage.getItem(LS_KEY) || "[]"); return Array.isArray(v) ? v : []; }
+    catch (e) { return []; }
+  }
+  function lsSave() { try { localStorage.setItem(LS_KEY, JSON.stringify(items)); } catch (e) {} }
+
+  function makeRow(it, showTag) {
+    var li = document.createElement("li");
+    li.className = "row" + (it.done ? " done" : "");
+    li.dataset.id = it.id;
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "check";
+    b.setAttribute("aria-label", it.name + (it.done ? "をカゴから戻す" : "をカゴに入れる"));
+    var box = document.createElement("span"); box.className = "box";
+    var nm = document.createElement("span"); nm.className = "name"; nm.textContent = it.name;
+    if (showTag && it.store) {
+      var tg = document.createElement("span"); tg.className = "tag"; tg.textContent = it.store; nm.appendChild(tg);
+    }
+    b.appendChild(box); b.appendChild(nm);
+    var d = document.createElement("button");
+    d.type = "button"; d.className = "del"; d.textContent = "×";
+    d.setAttribute("aria-label", it.name + "を消す");
+    li.appendChild(b); li.appendChild(d);
+    return li;
+  }
+
+  function render() {
+    var todo = items.filter(function (i) { return !i.done; }).sort(function (a, b) { return a.ts - b.ts; });
+    var done = items.filter(function (i) { return i.done; }).sort(function (a, b) { return b.ts - a.ts; });
+
+    $("count").innerHTML = "あと <b>" + todo.length + "</b> つ ／ カゴ <b>" + done.length + "</b> つ";
+
+    var tl = $("todo"); tl.textContent = "";
+    if (!todo.length) {
+      var p = document.createElement("li"); p.className = "empty";
+      p.textContent = items.length ? "ぜんぶカゴに入りました。おつかれさまです。" : "まだ何もありません。上の入力欄か、よく買うものから追加できます。";
+      tl.appendChild(p);
+    } else {
+      var order = storeList().concat([""]);
+      var groups = {};
+      todo.forEach(function (i) { var k = i.store || ""; (groups[k] = groups[k] || []).push(i); });
+      var keys = order.filter(function (k) { return groups[k]; });
+      Object.keys(groups).forEach(function (k) { if (keys.indexOf(k) < 0) keys.push(k); });
+      var showHead = keys.length > 1 || keys[0] !== "";
+      keys.forEach(function (k) {
+        if (showHead) {
+          var h = document.createElement("li"); h.className = "grp";
+          h.textContent = (k || "どこでも") + "（" + groups[k].length + "）";
+          tl.appendChild(h);
+        }
+        groups[k].forEach(function (i) { tl.appendChild(makeRow(i, false)); });
+      });
+    }
+
+    var dl = $("done"); dl.textContent = "";
+    done.forEach(function (i) { dl.appendChild(makeRow(i, true)); });
+    renderStores();
+    $("doneSection").hidden = !done.length;
+
+    var ca = $("clearArea"); ca.textContent = "";
+    if (done.length) {
+      if (!confirmClear) {
+        var c = document.createElement("button"); c.type = "button"; c.id = "clearBtn"; c.textContent = "カゴを空にする";
+        ca.appendChild(c);
+      } else {
+        var s = document.createElement("span"); s.textContent = "消しますか？";
+        var y = document.createElement("button"); y.type = "button"; y.id = "clearYes"; y.className = "danger"; y.textContent = "はい";
+        var n = document.createElement("button"); n.type = "button"; n.id = "clearNo"; n.textContent = "やめる";
+        ca.appendChild(s); ca.appendChild(y); ca.appendChild(n);
+      }
+    }
+  }
+
+  var DEFAULT_STORES = ["スーパー", "ドラッグストア", "コンビニ", "100均"];
+  var STORE_KEY = "kaimono-store-v1";
+  var curStore = "";
+  try { curStore = localStorage.getItem(STORE_KEY) || ""; } catch (e) {}
+
+  var CUSTOM_KEY = "kaimono-stores-v1";
+  var customStores = [];
+  try {
+    var cs = JSON.parse(localStorage.getItem(CUSTOM_KEY) || "[]");
+    if (Array.isArray(cs)) customStores = cs.filter(function (x) { return typeof x === "string" && x; });
+  } catch (e) {}
+  var settingsDoc = null;
+  function saveCustom() {
+    try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(customStores)); } catch (e) {}
+    if (settingsDoc) { settingsDoc.set({ list: customStores }).catch(function () {}); }
+  }
+
+  function storeList() {
+    var l = DEFAULT_STORES.slice();
+    customStores.forEach(function (s) { if (l.indexOf(s) < 0) l.push(s); });
+    items.forEach(function (i) { if (i.store && l.indexOf(i.store) < 0) l.push(i.store); });
+    if (curStore && l.indexOf(curStore) < 0) l.push(curStore);
+    return l;
+  }
+  function renderStores() {
+    var box = $("stores");
+    box.textContent = "";
+    var lab = document.createElement("span"); lab.className = "label";
+    lab.textContent = "どこで買う？（お店を選んでから追加）";
+    box.appendChild(lab);
+    [""].concat(storeList()).forEach(function (s) {
+      var b = document.createElement("button"); b.type = "button"; b.dataset.store = s;
+      b.textContent = s || "どこでも";
+      var on = s === curStore;
+      b.className = on ? "on" : "";
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+      box.appendChild(b);
+    });
+    var m = document.createElement("button"); m.type = "button"; m.id = "addStoreBtn"; m.className = "more";
+    m.textContent = "＋ ほかのお店";
+    box.appendChild(m);
+  }
+  function setStore(s) {
+    curStore = s;
+    try { localStorage.setItem(STORE_KEY, s); } catch (e) {}
+    renderStores();
+  }
+
+  function find(id) { for (var k = 0; k < items.length; k++) if (items[k].id === id) return items[k]; return null; }
+
+  async function addItem(name) {
+    name = (name || "").trim();
+    if (!name) return;
+    var it = { name: name, done: false, ts: Date.now(), store: curStore };
+    if (store) {
+      try { await store.add(it); } catch (e) { showNote("保存できませんでした。もう一度お試しください。"); }
+    } else {
+      it.id = "l" + it.ts + Math.random().toString(36).slice(2, 6);
+      items.push(it); lsSave(); render();
+    }
+  }
+  async function toggle(id) {
+    var it = find(id); if (!it) return;
+    var nd = !it.done, ts = Date.now();
+    if (store) {
+      try { await store.doc(id).update({ done: nd, ts: ts }); } catch (e) { showNote("保存できませんでした。もう一度お試しください。"); }
+    } else { it.done = nd; it.ts = ts; lsSave(); render(); }
+  }
+  async function remove(id) {
+    if (store) {
+      try { await store.doc(id).delete(); } catch (e) { showNote("消せませんでした。もう一度お試しください。"); }
+    } else { items = items.filter(function (i) { return i.id !== id; }); lsSave(); render(); }
+  }
+  async function clearDone() {
+    var ids = items.filter(function (i) { return i.done; }).map(function (i) { return i.id; });
+    confirmClear = false;
+    if (store) { for (var k = 0; k < ids.length; k++) { await remove(ids[k]); } }
+    else { items = items.filter(function (i) { return !i.done; }); lsSave(); render(); }
+    render();
+  }
+
+  function showNote(t) { var n = $("note"); n.textContent = t; n.hidden = !t; }
+
+  // Quick-add chips
+  QUICK.forEach(function (q) {
+    var b = document.createElement("button"); b.type = "button"; b.textContent = "＋ " + q; b.dataset.q = q;
+    $("quick").appendChild(b);
+  });
+  $("quick").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-q]"); if (b) addItem(b.dataset.q);
+  });
+
+  $("addForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var inp = $("addInput"); var v = inp.value;
+    inp.value = "";
+    (async function () {
+      var parts = v.split(/[、,，\n]+/);
+      for (var k = 0; k < parts.length; k++) { await addItem(parts[k]); }
+    })();
+    inp.focus();
+  });
+
+  document.addEventListener("click", function (e) {
+    var row = e.target.closest(".row");
+    if (row) {
+      if (e.target.closest(".del")) remove(row.dataset.id);
+      else if (e.target.closest(".check")) toggle(row.dataset.id);
+      return;
+    }
+    var t = e.target.id;
+    if (t === "clearBtn") { confirmClear = true; render(); }
+    else if (t === "clearNo") { confirmClear = false; render(); }
+    else if (t === "clearYes") { clearDone(); }
+  });
+
+  $("stores").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    if (b.id === "addStoreBtn") {
+      var f = $("storeForm"); f.hidden = !f.hidden;
+      if (!f.hidden) $("storeInput").focus();
+      return;
+    }
+    if (b.dataset.store !== undefined) { setStore(b.dataset.store); render(); }
+  });
+  $("storeForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var v = $("storeInput").value.trim();
+    if (!v) return;
+    $("storeInput").value = "";
+    $("storeForm").hidden = true;
+    if (DEFAULT_STORES.indexOf(v) < 0 && customStores.indexOf(v) < 0) { customStores.push(v); saveCustom(); }
+    setStore(v);
+  });
+
+  // Start: local copy first so the page is never blank, then switch to the shared store.
+  items = lsLoad(); render();
+
+  showNote("リストは、このスマホの中にだけ保存されます。");
+})();
+</script>
+
+</body>
+</html>
